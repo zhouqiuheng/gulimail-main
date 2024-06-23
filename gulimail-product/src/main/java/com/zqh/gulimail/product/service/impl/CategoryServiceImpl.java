@@ -3,6 +3,8 @@ package com.zqh.gulimail.product.service.impl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,6 +63,43 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryDao, CategoryEntity
         //tudo ,寻找待办事项（备忘录）
         //TODO 1.检查当前删除的菜单是否被别的地方引用
         baseMapper.deleteBatchIds(list);
+    }
+
+    //[2/25/225]
+    @Override
+    public Long[] findCatelogPath(Long catelogId) {
+        List<Long> paths = new ArrayList<>();
+
+        List<Long> parentPath = findParentPath(catelogId, paths);
+
+        Collections.reverse(parentPath);
+
+        return paths.toArray(new Long[parentPath.size()]);
+    }
+
+    private List<Long> findParentPath(Long catelogId, List<Long> paths){
+
+//        paths.add(catelogId);
+//
+//        CategoryEntity byId = this.getById(catelogId);
+//        if(byId.getParentCid()!=0){
+//            findParentPath(byId.getParentCid(),paths);
+//        }
+
+//        while(byId!=null&&byId.getParentCid()!=0){
+//            paths.add(byId.getParentCid());
+//        }
+        while (catelogId!=null){
+            paths.add(catelogId);
+            CategoryEntity byId = this.getById(catelogId);
+            if(byId!=null&&byId.getParentCid()!=0){
+                catelogId = byId.getParentCid();
+            }else{
+                catelogId = null;
+            }
+        }
+
+        return paths;
     }
 
     /*
