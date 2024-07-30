@@ -44,6 +44,9 @@ public class CategoryBrandRelationServiceImpl extends ServiceImpl<CategoryBrandR
         Long catelogId = categoryBrandRelation.getCatelogId();
         //查询详细名字
         BrandEntity brandEntity = brandDao.selectById(brandId);
+        //BrandEntity brandEntity1 = baseMapper.selectById(brandId);直接使用basemapper会导致类型错误
+        // 比如编译器认为 baseMapper 返回的类型是 CategoryBrandRelationEntity 而不是 BrandEntity。
+        //在出现不同实体类进行数据库操作的情况，需要用dao来进行区分
         CategoryEntity categoryEntity = categoryDao.selectById(catelogId);
 
         categoryBrandRelation.setBrandName(brandEntity.getName());
