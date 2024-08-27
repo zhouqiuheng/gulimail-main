@@ -1,16 +1,17 @@
 package com.zqh.gulimail.product.controller;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.zqh.gulimail.product.entity.AttrEntity;
+import com.zqh.gulimail.product.service.AttrAttrgroupRelationService;
+import com.zqh.gulimail.product.service.AttrService;
 import com.zqh.gulimail.product.service.CategoryService;
+import com.zqh.gulimail.product.vo.AttrGroupRelationVo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.zqh.gulimail.product.entity.AttrGroupEntity;
 import com.zqh.gulimail.product.service.AttrGroupService;
@@ -35,6 +36,32 @@ public class AttrGroupController {
     @Autowired
     private CategoryService categoryService;
 
+//   AttrEntity类通常是一个持久化实体类，它被映射到数据库中的一张表。实体类通常不会被Spring管理为Bean，所以不能直接在Spring容器中进行注入。
+//    @Autowired
+//    private AttrEntity attrEntity;
+
+    @Autowired
+    private AttrService attrService;
+
+
+//    @Autowired
+//    private AttrAttrgroupRelationService relationService;
+
+    //delete from pms_attr_attrgroup_relation where (attr_id=1 and attr_group_id = 1)
+    // or(attr_id=2 and attr_group_id = 3)
+    //or.....
+    //一直or下去，所以是个集合
+    @PostMapping("/attr/relation/delete")
+    public R deleteRelation(@RequestBody AttrGroupRelationVo[] vos){
+        attrService.deleteRelation(vos);
+        return R.ok();
+    }
+
+    @GetMapping("/{attrgroupId}/attr/relation")
+    public R attrRelation(@PathVariable("attrgroupId") Long attrgroupId) {
+        List<AttrEntity> entities = attrService.getRelationAttr(attrgroupId);
+        return R.ok().put("data", entities);
+    }
     /**
      * 列表
      */

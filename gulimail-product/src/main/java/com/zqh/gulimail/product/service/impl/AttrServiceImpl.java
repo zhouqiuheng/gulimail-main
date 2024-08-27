@@ -1,12 +1,15 @@
 package com.zqh.gulimail.product.service.impl;
 
-import com.fasterxml.jackson.databind.util.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.zqh.common.constant.product.AttrConstant;
 import com.zqh.gulimail.product.dao.AttrAttrgroupRelationDao;
 import com.zqh.gulimail.product.dao.AttrGroupDao;
 import com.zqh.gulimail.product.dao.CategoryDao;
 import com.zqh.gulimail.product.entity.AttrAttrgroupRelationEntity;
 import com.zqh.gulimail.product.entity.AttrGroupEntity;
 import com.zqh.gulimail.product.entity.CategoryEntity;
+import com.zqh.gulimail.product.service.CategoryService;
+import com.zqh.gulimail.product.vo.AttrGroupRelationVo;
 import com.zqh.gulimail.product.vo.AttrRespVo;
 import com.zqh.gulimail.product.vo.AttrVo;
 import org.apache.commons.lang.StringUtils;
@@ -14,6 +17,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +31,7 @@ import com.zqh.common.utils.Query;
 import com.zqh.gulimail.product.dao.AttrDao;
 import com.zqh.gulimail.product.entity.AttrEntity;
 import com.zqh.gulimail.product.service.AttrService;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service("attrService")
@@ -42,6 +47,9 @@ public class AttrServiceImpl extends ServiceImpl<AttrDao, AttrEntity> implements
 
     @Autowired
     CategoryDao categoryDao;
+
+    @Autowired
+    CategoryService categoryService;
 
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
@@ -65,15 +73,21 @@ public class AttrServiceImpl extends ServiceImpl<AttrDao, AttrEntity> implements
         this.save(attrEntity);
 
         //保存关联关系
-        AttrAttrgroupRelationEntity relationEntity = new AttrAttrgroupRelationEntity();
-        relationEntity.setAttrGroupId(attr.getAttrGroupId());
-        relationEntity.setAttrId(attrEntity.getAttrId());
-        relationDao.insert(relationEntity);
+        if (attr.getAttrType() == AttrConstant.AttrEnum.ATTR_TYPE_BASE.getCode()){
+            AttrAttrgroupRelationEntity relationEntity = new AttrAttrgroupRelationEntity();
+            relationEntity.setAttrGroupId(attr.getAttrGroupId());
+            relationEntity.setAttrId(attrEntity.getAttrId());
+            relationDao.insert(relationEntity);
+        }
+
     }
 
     @Override
-    public PageUtils queryBaseAttrPage(Map<String, Object> params, Long catelogId) {
-        QueryWrapper<AttrEntity> queryWrapper = new QueryWrapper<>();
+    public PageUtils queryBaseAttrPage(Map<String, Object> params, Long catelogId, String type) {
+        //equalsIgnoreCase() 方法用于将字符串与指定的对象比较，不考虑大小写。
+        QueryWrapper<AttrEntity> queryWrapper = new QueryWrapper<AttrEntity>()
+                .eq("attr_type","base"
+                        .equalsIgnoreCase(type)?AttrConstant.AttrEnum.ATTR_TYPE_BASE.getCode():AttrConstant.AttrEnum.ATTR_TYPE_SALE.getCode());
 
         if(catelogId != 0){
           queryWrapper.eq("catelog_id",catelogId);
@@ -101,15 +115,18 @@ public class AttrServiceImpl extends ServiceImpl<AttrDao, AttrEntity> implements
 
             //设置分类和分组的名字
             //获得属性ID
-            AttrAttrgroupRelationEntity attrId = relationDao.selectOne(new QueryWrapper<AttrAttrgroupRelationEntity>()
-                    .eq("attr_id", attrEntity.getAttrId()));
-            //可获得组ID
 
-            if (attrId != null) {
-                Long attrGroupId = attrId.getAttrGroupId();
-                AttrGroupEntity attrGroupEntity = attrGroupDao.selectById(attrGroupId);
-                attrRespVo.setGroupName(attrGroupEntity.getAttrGroupName());
+            //销售属性没有分组，传分组的attr_group_id会导致空指针异常
+            if ("base".equalsIgnoreCase(type)){
+                AttrAttrgroupRelationEntity attrId = relationDao.selectOne(new QueryWrapper<AttrAttrgroupRelationEntity>()
+                        .eq("attr_id", attrEntity.getAttrId()));
+                if (attrId != null) {
+                    Long attrGroupId = attrId.getAttrGroupId();
+                    AttrGroupEntity attrGroupEntity = attrGroupDao.selectById(attrGroupId);
+                    attrRespVo.setGroupName(attrGroupEntity.getAttrGroupName());
+                }
             }
+            //可获得组ID
 
             CategoryEntity categoryEntity = categoryDao.selectById(attrEntity.getCatelogId());
             if (categoryEntity != null) {
@@ -121,6 +138,102 @@ public class AttrServiceImpl extends ServiceImpl<AttrDao, AttrEntity> implements
         }).collect(Collectors.toList());
         pageUtils.setList(respVos);
         return pageUtils;
+    }
+
+    @Override
+    public AttrRespVo getAttrInfo(Long attrId) {
+        AttrRespVo respVo = new AttrRespVo();
+        AttrEntity attrEntity = this.getById(attrId);
+        BeanUtils.copyProperties(attrEntity,respVo);
+
+        if (attrEntity.getAttrType() == AttrConstant.AttrEnum.ATTR_TYPE_BASE.getCode()){
+            //设置分组信息
+            AttrAttrgroupRelationEntity attrAttrgroupRelationEntity = relationDao
+                    .selectOne(new QueryWrapper<AttrAttrgroupRelationEntity>()
+                            .eq("attr_id", attrId));
+            if(attrAttrgroupRelationEntity != null){
+                respVo.setAttrGroupId(attrAttrgroupRelationEntity.getAttrGroupId());
+
+                AttrGroupEntity attrGroupEntity = attrGroupDao.selectById(attrAttrgroupRelationEntity.getAttrGroupId());
+                if(attrGroupEntity != null){
+                    respVo.setGroupName(attrGroupEntity.getAttrGroupName());
+                }
+
+            }
+        }
+
+
+
+        //设置分类信息
+        Long catelogId = attrEntity.getCatelogId();
+        Long[] catelogPath = categoryService.findCatelogPath(catelogId);
+        respVo.setCatelogPath(catelogPath);
+        CategoryEntity categoryEntity = categoryDao.selectById(catelogId);
+        if (categoryEntity != null){
+            respVo.setCatelogName(categoryEntity.getName());
+        }
+
+        return respVo;
+    }
+
+    @Transactional
+    @Override
+    public void updateAttr(AttrVo attr) {
+        AttrEntity attrEntity = new AttrEntity();
+        BeanUtils.copyProperties(attr,attrEntity);
+        this.updateById(attrEntity);
+
+        if (attrEntity.getAttrType() == AttrConstant.AttrEnum.ATTR_TYPE_BASE.getCode()){
+            //这是在找一个sql语句里where的地方，为了确定他是新增还是修改，用一个count计数
+            //如果count为0是新增其他是修改
+            Integer count = relationDao.selectCount(new QueryWrapper<AttrAttrgroupRelationEntity>()
+                    .eq("attr_id", attr.getAttrId()));
+            AttrAttrgroupRelationEntity relationEntity = new AttrAttrgroupRelationEntity();
+
+            relationEntity.setAttrGroupId(attr.getAttrGroupId());
+            relationEntity.setAttrId(attr.getAttrId());
+            if (count>0){
+                //修改分组关联
+                relationDao.update(relationEntity,new UpdateWrapper<AttrAttrgroupRelationEntity>()
+                        .eq("attr_id",attr.getAttrId()));
+            }else {
+                relationDao.insert(relationEntity);
+            }
+        }
+
+
+    }
+
+
+    //根据分组id查找关联的所有属性
+    @Override
+    public List<AttrEntity> getRelationAttr(Long attrgroupId) {
+
+        List<AttrAttrgroupRelationEntity> entities = relationDao.selectList(new QueryWrapper<AttrAttrgroupRelationEntity>()
+                .eq("attr_group_id", attrgroupId));
+
+        List<Long> attrIds = entities.stream().map((attr) -> {
+            return attr.getAttrId();
+        }).collect(Collectors.toList());
+
+        List<AttrEntity> attrEntities = this.listByIds(attrIds);
+        return  attrEntities;
+    }
+
+    @Override
+    public void deleteRelation(AttrGroupRelationVo[] vos) {
+        //relationDao.delete(new QueryWrapper<>().eq("attr_id",1L).eq("attr_group_id",1L));
+        //不要单独一条一条的删除语句
+
+        //relationDao传的AttrAttrgroupRelationEntity
+        //将数组vos里面的数据封装成一个AttrAttrgroupRelationEntity类的数据
+        List<AttrAttrgroupRelationEntity> entites = Arrays.asList(vos).stream().map((item) -> {
+            AttrAttrgroupRelationEntity relationEntity = new AttrAttrgroupRelationEntity();
+            BeanUtils.copyProperties(item, relationEntity);
+            return relationEntity;
+        }).collect(Collectors.toList());
+
+        relationDao.deleteBatchRelation(entites);
     }
 
 }
