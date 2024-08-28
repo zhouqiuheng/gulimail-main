@@ -7,6 +7,6 @@ public class AttrGroupRelationVo {
 
     private Long attrId;
 
-    private String attrGroupId;
+    private Long attrGroupId;
 
 }

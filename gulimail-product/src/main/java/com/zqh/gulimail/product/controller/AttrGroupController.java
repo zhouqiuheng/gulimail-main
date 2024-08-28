@@ -10,6 +10,7 @@ import com.zqh.gulimail.product.service.AttrAttrgroupRelationService;
 import com.zqh.gulimail.product.service.AttrService;
 import com.zqh.gulimail.product.service.CategoryService;
 import com.zqh.gulimail.product.vo.AttrGroupRelationVo;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,16 +38,34 @@ public class AttrGroupController {
     private CategoryService categoryService;
 
 //   AttrEntity类通常是一个持久化实体类，它被映射到数据库中的一张表。实体类通常不会被Spring管理为Bean，所以不能直接在Spring容器中进行注入。
-//    @Autowired
-//    private AttrEntity attrEntity;
+    @Autowired
+    AttrService attrService;
 
     @Autowired
-    private AttrService attrService;
+    AttrAttrgroupRelationService relationService;
+
 
 
 //    @Autowired
 //    private AttrAttrgroupRelationService relationService;
 
+
+    ///product/attrgroup/attr/relation
+    @PostMapping("/attr/relation")
+    public R addRelation(@RequestBody List<AttrGroupRelationVo> vos){
+        relationService.saveBatch(vos);
+        return R.ok();
+    }
+
+
+
+    ///product/attrgroup/{attrgroupId}/noattr/relation
+    @GetMapping("/{attrgroupId}/noattr/relation")
+    public R attrNoRelation(@PathVariable("attrgroupId") Long attrgroupId,
+                            @RequestParam Map<String,Object> params){
+        PageUtils page = attrService.getNoRelationAttr(params,attrgroupId);
+        return R.ok().put("page",page);
+    }
     //delete from pms_attr_attrgroup_relation where (attr_id=1 and attr_group_id = 1)
     // or(attr_id=2 and attr_group_id = 3)
     //or.....
