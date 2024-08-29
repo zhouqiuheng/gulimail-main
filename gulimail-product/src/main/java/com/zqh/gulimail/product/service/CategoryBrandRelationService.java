@@ -2,8 +2,10 @@ package com.zqh.gulimail.product.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zqh.common.utils.PageUtils;
+import com.zqh.gulimail.product.entity.BrandEntity;
 import com.zqh.gulimail.product.entity.CategoryBrandRelationEntity;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,5 +22,7 @@ public interface CategoryBrandRelationService extends IService<CategoryBrandRela
     void saveDetail(CategoryBrandRelationEntity categoryBrandRelation);
 
     void updateBrand(Long brandId, String name);
+
+    List<BrandEntity> getBrandsByCatId(Long catId);
 }
 
