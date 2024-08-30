@@ -3,6 +3,7 @@ package com.zqh.gulimail.product.controller;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
 import com.zqh.gulimail.product.entity.AttrEntity;
@@ -10,6 +11,7 @@ import com.zqh.gulimail.product.service.AttrAttrgroupRelationService;
 import com.zqh.gulimail.product.service.AttrService;
 import com.zqh.gulimail.product.service.CategoryService;
 import com.zqh.gulimail.product.vo.AttrGroupRelationVo;
+import com.zqh.gulimail.product.vo.AttrGroupWithAttrsVo;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +57,16 @@ public class AttrGroupController {
     public R addRelation(@RequestBody List<AttrGroupRelationVo> vos){
         relationService.saveBatch(vos);
         return R.ok();
+    }
+
+    ///product/attrgroup/{catelogId}/withattr
+    @GetMapping("/{catelogId}/withattr")
+    public R getAttrGoupWithAttrs(@PathVariable("catelogId") Long catelogId){
+
+        //查出当前分类下所有属性分组
+        //查出每个属性分组的所有属性
+        List<AttrGroupWithAttrsVo> vos = attrGroupService.getAttrGroupWithAttrsByCatelogId(catelogId);
+        return R.ok().put("data",vos);
     }
 
 
