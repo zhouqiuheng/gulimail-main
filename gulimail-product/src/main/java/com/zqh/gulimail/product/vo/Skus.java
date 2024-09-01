@@ -2,6 +2,7 @@
   * Copyright 2024 bejson.com 
   */
 package com.zqh.gulimail.product.vo;
+import com.zqh.common.to.MemberPrice;
 import lombok.Data;
 
 import java.math.BigDecimal;

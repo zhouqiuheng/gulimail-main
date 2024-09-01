@@ -1,9 +1,12 @@
 package com.zqh.gulimail.product.service.impl;
 
+import com.zqh.common.to.SkuReductionTo;
+import com.zqh.common.to.SpuBoundTo;
+import com.zqh.common.utils.R;
 import com.zqh.gulimail.product.entity.*;
+import com.zqh.gulimail.product.feign.CouponFeignService;
 import com.zqh.gulimail.product.service.*;
-import com.zqh.gulimail.product.vo.BaseAttrs;
-import com.zqh.gulimail.product.vo.SpuSaveVo;
+import com.zqh.gulimail.product.vo.*;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,17 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
     @Autowired
     ProductAttrValueService productAttrValueService;
 
+    @Autowired
+    SkuInfoService skuInfoService;
+
+    @Autowired
+    SkuImagesService skuImagesService;
+
+    @Autowired
+    SkuSaleAttrValueService skuSaleAttrValueService;
+
+    @Autowired
+    CouponFeignService couponFeignService;
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
         IPage<SpuInfoEntity> page = this.page(
@@ -89,12 +103,81 @@ public class SpuInfoServiceImpl extends ServiceImpl<SpuInfoDao, SpuInfoEntity> i
         productAttrValueService.saveProductAttr(collect);
 
         //保存spu积分信息gulimail_sms.sms_spu_bounds
-
+        Bounds bounds = vo.getBounds();
+        SpuBoundTo spuBoundTo = new SpuBoundTo();
+        BeanUtils.copyProperties(bounds,spuBoundTo);
+        spuBoundTo.setSpuId(spuInfoEntity.getId());
+        R r = couponFeignService.saveSpuBounds(spuBoundTo);
+        if (r.getCode()!=0){
+            log.error("远程保存spu积分信息失败");
+        }
         //保存当前spu对应的所有sku信息
         //1）sku基本信息pms_sku_info
-        //2）sku图片信息pms_sku_images
-        //3）sku销售属性信息pms_sku_sale_attr_value
-        //4)sku优惠满减信息gulimail_sms.sms_sku_full_reduction/sms_sku_ladder/sms_member_pric
+        List<Skus> skus = vo.getSkus();
+        //forEach()会修改原来的数组。而map()方法会得到一个新的数组并返回。
+        if(skus!=null&&skus.size()>0){
+            skus.forEach(item->{
+                String defaultImg = "";
+                for(Images image : item.getImages()){
+                    if (image.getDefaultImg() == 1){
+                        defaultImg = image.getImgUrl();
+                    }
+                }
+
+                SkuInfoEntity skuInfoEntity = new SkuInfoEntity();
+                //    private String skuName;
+                //    private BigDecimal price;
+                //    private String skuTitle;
+                //    private String skuSubtitle;
+                BeanUtils.copyProperties(item,skuInfoEntity);
+                skuInfoEntity.setBrandId(spuInfoEntity.getBrandId());
+                skuInfoEntity.setCatalogId(spuInfoEntity.getCatalogId());
+                skuInfoEntity.setSaleCount(0L);
+                skuInfoEntity.setSpuId(spuInfoEntity.getId());
+                skuInfoEntity.setSkuDefaultImg(defaultImg);
+                skuInfoService.saveSkuInfo(skuInfoEntity);
+
+
+                Long skuId = skuInfoEntity.getSkuId();
+
+
+                List<SkuImagesEntity> imagesEntities = item.getImages().stream().map(img -> {
+                    SkuImagesEntity skuImagesEntity = new SkuImagesEntity();
+                    skuImagesEntity.setSkuId(skuId);
+                    skuImagesEntity.setImgUrl(img.getImgUrl());
+                    skuImagesEntity.setDefaultImg(img.getDefaultImg());
+                    return skuImagesEntity;
+                }).collect(Collectors.toList());
+                //2）sku图片信息pms_sku_images
+                //TODO 没有图片路径的无需保存
+                skuImagesService.saveBatch(imagesEntities);
+
+                //3）sku销售属性信息pms_sku_sale_attr_value
+                List<Attr> attr = item.getAttr();
+                List<SkuSaleAttrValueEntity> skuSaleAttrValueEntities = attr.stream().map(a -> {
+                    SkuSaleAttrValueEntity saleAttrValueEntity = new SkuSaleAttrValueEntity();
+                    BeanUtils.copyProperties(a, saleAttrValueEntity);
+                    saleAttrValueEntity.setSkuId(skuId);
+
+                    return saleAttrValueEntity;
+                }).collect(Collectors.toList());
+
+                skuSaleAttrValueService.saveBatch(skuSaleAttrValueEntities);
+
+                //4)sku优惠满减信息gulimail_sms.sms_sku_full_reduction/sms_sku_ladder/sms_member_pric
+                SkuReductionTo skuReductionTo = new SkuReductionTo();
+                BeanUtils.copyProperties(item,skuReductionTo);
+                skuReductionTo.setSkuId(skuId);
+                R r1 = couponFeignService.saveSkuReduction(skuReductionTo);
+                if (r1.getCode()!=0){
+                    log.error("远程保存sku优惠信息失败");
+                }
+            });
+        }
+
+
+
+
     }
 
     @Override
