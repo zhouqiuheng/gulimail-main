@@ -1,9 +1,12 @@
 package com.zqh.gulimail.product.controller;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 //import org.apache.shiro.authz.annotation.RequiresPermissions;
+import com.zqh.gulimail.product.entity.ProductAttrValueEntity;
+import com.zqh.gulimail.product.service.ProductAttrValueService;
 import com.zqh.gulimail.product.vo.AttrRespVo;
 import com.zqh.gulimail.product.vo.AttrVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +32,28 @@ public class AttrController {
     @Autowired
     private AttrService attrService;
 
+    @Autowired
+    ProductAttrValueService productAttrValueService;
 
+    /**
+     * 获取spu规格，前端回显商品规格参数值
+     */
+    @RequestMapping("/base/listforspu/{spuId}")
+    public R baseAttrlistforspu(@PathVariable("spuId") Long spuId){
+        List<ProductAttrValueEntity> entities = productAttrValueService.baseAttrlistforspu(spuId);
 
+        return R.ok().put("data", entities);
+    }
+
+    /**
+     * 修改商品规格
+     */
+    @PostMapping("/update/{spuId}")
+    public R updateSpuAttr(@PathVariable("spuId") Long spuId, @RequestBody List<ProductAttrValueEntity> entities){
+        productAttrValueService.updateSpuAttr(spuId, entities);
+
+        return R.ok();
+    }
 
     // /product/attr/base/list/{catelogId}
     @GetMapping("/{attrType}/list/{catelogId}")
